@@ -1,0 +1,95 @@
+name: CI
+
+# Déclenché à chaque push et pull request sur master
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Android + Desktop (JVM) : tournent sur Linux (rapide, peu de quota consommé).
+  # Comme toute la logique est dans commonMain, ce job couvre l'essentiel du code.
+  # ---------------------------------------------------------------------------
+  android-desktop:
+    name: Build & Test (Android + Desktop)
+    runs-on: ubuntu-latest
+
+    steps:
+      # Récupère le code du repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # JDK 21 / Corretto = même version + vendor que gradle/gradle-daemon-jvm.properties,
+      # pour que Gradle réutilise ce JDK au lieu d'en télécharger un.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 21
+
+      # Installe Gradle + active le cache (dépendances & build) entre les runs
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # local.properties est git-ignored : on le recrée à partir du secret GitHub.
+      # À configurer dans : Settings > Secrets and variables > Actions > New repository secret
+      #   Name = WEATHER_API_KEY
+      # (sdk.dir n'est pas nécessaire : le runner expose déjà ANDROID_SDK_ROOT)
+      - name: Create local.properties
+        run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
+
+      # Rend le wrapper exécutable (le bit +x peut être perdu sur un repo créé sous Windows)
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # Tests partagés (logique JVM + host tests Android)
+      - name: Run shared tests
+        run: ./gradlew :shared:jvmTest :shared:testAndroidHostTest
+
+      # Build de l'APK debug Android
+      - name: Build Android debug APK
+        run: ./gradlew :androidApp:assembleDebug
+
+      # Build de l'application Desktop (app image, sans empaqueter d'installeur)
+      - name: Build Desktop app
+        run: ./gradlew :desktopApp:createDistributable
+
+      # (Optionnel) Rend l'APK téléchargeable depuis la page du run dans l'onglet Actions
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: androidApp-debug
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # iOS : nécessite OBLIGATOIREMENT un runner macOS (~10x plus coûteux en quota).
+  # Désactivé par défaut. Pour l'activer, décommente tout le bloc ci-dessous.
+  # ---------------------------------------------------------------------------
+  # ios:
+  #   name: Build & Test (iOS)
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up JDK 21
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         distribution: corretto
+  #         java-version: 21
+  #
+  #     - name: Set up Gradle
+  #       uses: gradle/actions/setup-gradle@v4
+  #
+  #     - name: Create local.properties
+  #       run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
+  #
+  #     - name: Make gradlew executable
+  #       run: chmod +x ./gradlew
+  #
+  #     # Tests de la logique partagée compilée pour le simulateur iOS (arm64)
+  #     - name: Run iOS simulator tests
+  #       run: ./gradlew :shared:iosSimulatorArm64Test
