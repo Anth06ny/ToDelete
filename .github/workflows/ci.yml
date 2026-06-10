@@ -45,8 +45,21 @@ jobs:
         run: chmod +x ./gradlew
 
       # Tests partagés (logique JVM + host tests Android)
+      # --continue : exécute les deux tâches de test même si la première échoue,
+      # pour générer les rapports des deux.
       - name: Run shared tests
-        run: ./gradlew :shared:jvmTest :shared:testAndroidHostTest
+        run: ./gradlew --continue :shared:jvmTest :shared:testAndroidHostTest
+
+      # Sauvegarde les rapports HTML de test comme artefact téléchargeable.
+      # if: always() est INDISPENSABLE : sans lui, l'étape serait sautée quand
+      # les tests échouent (or c'est justement là qu'on veut le rapport).
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: shared/build/reports/tests/
+          if-no-files-found: ignore
 
       # Build de l'APK debug Android
       - name: Build Android debug APK
