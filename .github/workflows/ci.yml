@@ -65,9 +65,13 @@ jobs:
       - name: Build Android debug APK
         run: ./gradlew :androidApp:assembleDebug
 
-      # Build de l'application Desktop (app image, sans empaqueter d'installeur)
-      - name: Build Desktop app
-        run: ./gradlew :desktopApp:createDistributable
+      # jpackage a besoin de fakeroot (+ binutils) pour fabriquer un .deb sous Linux
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot binutils
+
+      # Build du paquet Desktop installable (.deb sous Linux, via jpackage)
+      - name: Build Desktop .deb
+        run: ./gradlew :desktopApp:packageDeb
 
       # (Optionnel) Rend l'APK téléchargeable depuis la page du run dans l'onglet Actions
       - name: Upload Android APK
@@ -77,9 +81,18 @@ jobs:
           path: androidApp/build/outputs/apk/debug/*.apk
           if-no-files-found: ignore
 
+      # Rend le paquet .deb Desktop téléchargeable.
+      # ATTENTION : le .deb est SPÉCIFIQUE à Linux (runtime Java embarqué).
+      # Pour un .msi Windows ou un .dmg Mac, il faudrait des jobs windows-latest / macos-latest.
+      - name: Upload Desktop .deb (Linux)
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktopApp-linux-deb
+          path: desktopApp/build/compose/binaries/main/deb/*.deb
+          if-no-files-found: ignore
+
   # ---------------------------------------------------------------------------
   # iOS : nécessite OBLIGATOIREMENT un runner macOS (~10x plus coûteux en quota).
-  # Désactivé par défaut. Pour l'activer, décommente tout le bloc ci-dessous.
   # ---------------------------------------------------------------------------
   # ios:
   #   name: Build & Test (iOS)
