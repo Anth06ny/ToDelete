@@ -1,0 +1,60 @@
+name: Release
+
+# Déclenché UNIQUEMENT quand on pousse un tag de version (v1.0.0, v2.3.1, ...)
+# ou manuellement via le bouton "Run workflow" de l'onglet Actions.
+# Le push de commits ordinaires ne déclenche RIEN ici : c'est le rôle de ci.yml.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  android-release:
+    name: Build signed Android AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Le keystore (binaire) est stocké en base64 dans le secret KEYSTORE_BASE64.
+      # On le reconstitue dans le dossier temporaire du runner, HORS du dépôt,
+      # détruit avec la VM à la fin du job.
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+
+      # Recrée le même local.properties qu'en local : clé API + infos de signature.
+      # KEYSTORE_FILE est un chemin absolu -> rootProject.file() l'utilise tel quel.
+      - name: Create local.properties
+        run: |
+          echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/keystore.jks" >> local.properties
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> local.properties
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> local.properties
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> local.properties
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # AAB de release signé avec l'upload key
+      # Google re-signera avec l'app signing key lors de l'upload sur la Play Console)
+      - name: Build signed AAB
+        run: ./gradlew :androidApp:bundleRelease
+
+      # AAB téléchargeable depuis la page du run (section Artifacts),
+      # prêt à être déposé sur la Play Console.
+      - name: Upload Android AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: androidApp-release-aab
+          path: androidApp/build/outputs/bundle/release/*.aab
+          if-no-files-found: error

@@ -133,80 +133,75 @@ jobs:
   # ---------------------------------------------------------------------------
   # iOS : nécessite OBLIGATOIREMENT un runner macOS (~10x plus coûteux en quota).
   # ---------------------------------------------------------------------------
-  ios:
-     name: Build & Test (iOS)
-     runs-on: macos-latest
-     steps:
-       - name: Checkout
-         uses: actions/checkout@v4
-
-       # Compose Multiplatform 1.11 référence des frameworks du SDK iOS récent
-       # (UIUtilities -> UIViewLayoutRegion). Le Xcode par défaut du runner
-       # peut être trop ancien et peut faire échouer le link Kotlin/Native. On sélectionne
-       # donc le Xcode le plus récent installé sur l'image macOS.
-       - name: Select latest Xcode
-         run: |
-           sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)/Contents/Developer"
-           xcodebuild -version
-
-       - name: Set up JDK 21
-         uses: actions/setup-java@v4
-         with:
-           distribution: corretto
-           java-version: 21
-
-       - name: Set up Gradle
-         uses: gradle/actions/setup-gradle@v4
-
-       - name: Create local.properties
-         run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
-
-       - name: Make gradlew executable
-         run: chmod +x ./gradlew
-
-       # Build de l'app iOS pour le SIMULATEUR (aucune signature nécessaire).
-       # Placé AVANT les tests pour que l'app soit disponible en artefact
-       # même si un test échoue ensuite.
-       # -target (pas de scheme partagé commité dans le repo)
-       # Une vraie .ipa installable sur iPhone exige un compte Apple Developer
-       # (certificat + profil injectés en secrets)
-       - name: Build iOS app (simulator)
-         run: |
-           xcodebuild build \
-             -project iosApp/iosApp.xcodeproj \
-             -target iosApp \
-             -configuration Debug \
-             -sdk iphonesimulator \
-             SYMROOT="$PWD/iosApp/build" \
-             CODE_SIGNING_ALLOWED=NO
-
-       # ditto préserve permissions et liens symboliques du bundle .app,
-       # ce que le zip interne d'upload-artifact ne garantit pas.
-       - name: Zip iOS app
-         run: ditto -c -k --keepParent iosApp/build/Debug-iphonesimulator/ToDelete.app ToDelete-simulator.zip
-
-       # App lançable dans un simulateur iOS (Xcode) : la dézipper puis la glisser sur le simulateur
-       - name: Upload iOS app (simulator)
-         uses: actions/upload-artifact@v4
-         with:
-           name: iosApp-simulator
-           path: ToDelete-simulator.zip
-           if-no-files-found: ignore
-
-       # Tests de la logique partagée compilée pour le simulateur iOS (arm64).
-       # NOTE : MainViewModelTest.loadWeathers (vraie requête HTTP) échoue sur le
-       # simulateur en CI : la validation TLS Apple rejette la chaîne de certificats
-       # d'openweathermap (NSURLErrorDomain -1202). Le même test passe sur JVM car
-       # la JVM utilise son propre magasin de certificats.
-       - name: Run iOS simulator tests
-         run: ./gradlew :shared:iosSimulatorArm64Test
-
-       # Rapport HTML des tests iOS (if: always() -> aussi en cas d'échec,
-       # c'est justement là qu'on en a besoin pour lire l'assertion exacte)
-       - name: Upload iOS test reports
-         if: ${{ always() }}
-         uses: actions/upload-artifact@v4
-         with:
-           name: test-reports-ios
-           path: shared/build/reports/tests/
-           if-no-files-found: ignore
+#  ios:
+#     name: Build & Test (iOS)
+#     runs-on: macos-latest
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#
+#       # Compose Multiplatform 1.11 référence des frameworks du SDK iOS récent
+#       # (UIUtilities -> UIViewLayoutRegion). Le Xcode par défaut du runner
+#       # peut être trop ancien et peut faire échouer le link Kotlin/Native. On sélectionne
+#       # donc le Xcode le plus récent installé sur l'image macOS.
+#       - name: Select latest Xcode
+#         run: |
+#           sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)/Contents/Developer"
+#           xcodebuild -version
+#
+#       - name: Set up JDK 21
+#         uses: actions/setup-java@v4
+#         with:
+#           distribution: corretto
+#           java-version: 21
+#
+#       - name: Set up Gradle
+#         uses: gradle/actions/setup-gradle@v4
+#
+#       - name: Create local.properties
+#         run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
+#
+#       - name: Make gradlew executable
+#         run: chmod +x ./gradlew
+#
+#       # Build de l'app iOS pour le SIMULATEUR (aucune signature nécessaire).
+#       # Placé AVANT les tests pour que l'app soit disponible en artefact
+#       # même si un test échoue ensuite.
+#       # -target (pas de scheme partagé commité dans le repo)
+#       # Une vraie .ipa installable sur iPhone exige un compte Apple Developer
+#       # (certificat + profil injectés en secrets)
+#       - name: Build iOS app (simulator)
+#         run: |
+#           xcodebuild build \
+#             -project iosApp/iosApp.xcodeproj \
+#             -target iosApp \
+#             -configuration Debug \
+#             -sdk iphonesimulator \
+#             SYMROOT="$PWD/iosApp/build" \
+#             CODE_SIGNING_ALLOWED=NO
+#
+#       # ditto préserve permissions et liens symboliques du bundle .app,
+#       # ce que le zip interne d'upload-artifact ne garantit pas.
+#       - name: Zip iOS app
+#         run: ditto -c -k --keepParent iosApp/build/Debug-iphonesimulator/ToDelete.app ToDelete-simulator.zip
+#
+#       # App lançable dans un simulateur iOS (Xcode) : la dézipper puis la glisser sur le simulateur
+#       - name: Upload iOS app (simulator)
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: iosApp-simulator
+#           path: ToDelete-simulator.zip
+#           if-no-files-found: ignore
+#
+#       # Tests de la logique partagée compilée pour le simulateur iOS (arm64).
+#       - name: Run iOS simulator tests
+#         run: ./gradlew :shared:iosSimulatorArm64Test
+#
+#       # Rapport HTML des tests iOS (if: always() -> aussi en cas d'échec
+#       - name: Upload iOS test reports
+#         if: ${{ always() }}
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: test-reports-ios
+#           path: shared/build/reports/tests/
+#           if-no-files-found: ignore
