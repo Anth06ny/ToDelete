@@ -41,10 +41,10 @@ android {
     //A mettre avant buildTypes
     signingConfigs {
         create("release") {
-            storeFile = file(localProperties.getProperty("KEYSTORE_FILE") ?: throw Exception("KEYSTORE_FILE non configuré"))
-            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD") ?: throw Exception("KEYSTORE_PASSWORD non configuré")
-            keyAlias = localProperties.getProperty("KEY_ALIAS") ?: throw Exception("KEY_ALIAS non configuré")
-            keyPassword = localProperties.getProperty("KEY_PASSWORD") ?: throw Exception("KEY_PASSWORD non configuré")
+            storeFile = file(localProperties.getProperty("KEYSTORE_FILE") ?: "")
+            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
         }
     }
 
