@@ -46,7 +46,7 @@ val apiModule = module {
                 json(Json { ignoreUnknownKeys = true }, contentType = ContentType.Any)
             }
             install(HttpTimeout) {
-                requestTimeoutMillis = 5000
+                requestTimeoutMillis = 10000
             }
             //engine { proxy = ProxyBuilder.http("monproxy:1234") }
         }
