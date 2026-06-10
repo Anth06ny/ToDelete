@@ -140,6 +140,15 @@ jobs:
        - name: Checkout
          uses: actions/checkout@v4
 
+       # Compose Multiplatform 1.11 référence des frameworks du SDK iOS récent
+       # (UIUtilities -> UIViewLayoutRegion). Le Xcode par défaut du runner (16.4)
+       # est trop ancien et fait échouer le link Kotlin/Native. On sélectionne
+       # donc le Xcode le plus récent installé sur l'image macOS.
+       - name: Select latest Xcode
+         run: |
+           sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)/Contents/Developer"
+           xcodebuild -version
+
        - name: Set up JDK 21
          uses: actions/setup-java@v4
          with:
@@ -158,3 +167,31 @@ jobs:
        # Tests de la logique partagée compilée pour le simulateur iOS (arm64)
        - name: Run iOS simulator tests
          run: ./gradlew :shared:iosSimulatorArm64Test
+
+       # Build de l'app iOS pour le SIMULATEUR (aucune signature nécessaire).
+       # -target (et pas -scheme) : aucun scheme partagé n'est commité dans le repo.
+       # Une vraie .ipa installable sur iPhone exigerait un compte Apple Developer
+       # (certificat + profil injectés en secrets) -> hors périmètre ici.
+       - name: Build iOS app (simulator)
+         run: |
+           xcodebuild build \
+             -project iosApp/iosApp.xcodeproj \
+             -target iosApp \
+             -configuration Debug \
+             -sdk iphonesimulator \
+             SYMROOT="$PWD/iosApp/build" \
+             CODE_SIGNING_ALLOWED=NO
+
+       # ditto préserve permissions et liens symboliques du bundle .app,
+       # ce que le zip interne d'upload-artifact ne garantit pas.
+       - name: Zip iOS app
+         run: ditto -c -k --keepParent iosApp/build/Debug-iphonesimulator/ToDelete.app ToDelete-simulator.zip
+
+       # App lançable dans un simulateur iOS (Xcode) : la dézipper puis
+       # la glisser sur le simulateur, ou `xcrun simctl install booted ToDelete.app`
+       - name: Upload iOS app (simulator)
+         uses: actions/upload-artifact@v4
+         with:
+           name: iosApp-simulator
+           path: ToDelete-simulator.zip
+           if-no-files-found: ignore
