@@ -40,11 +40,18 @@ android {
     //Récupérer les informations du keystore dans local.properties pour signer l'exécutable de sortie
     //A mettre avant buildTypes
     signingConfigs {
-        create("release") {
-            storeFile = file(localProperties.getProperty("KEYSTORE_FILE") ?: "")
-            storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
-            keyAlias = localProperties.getProperty("KEY_ALIAS")
-            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+        // On ne crée la config de signature QUE si le keystore est défini en local.
+        // En CI, local.properties n'a pas KEYSTORE_FILE -> on ne crée rien, donc pas
+        // d'appel file("") qui planterait la configuration du projet.
+        val keystoreFile = localProperties.getProperty("KEYSTORE_FILE")
+        if (!keystoreFile.isNullOrBlank()) {
+            create("release") {
+                // rootProject.file -> chemin résolu depuis la racine (où est le keystore)
+                storeFile = rootProject.file(keystoreFile)
+                storePassword = localProperties.getProperty("KEYSTORE_PASSWORD")
+                keyAlias = localProperties.getProperty("KEY_ALIAS")
+                keyPassword = localProperties.getProperty("KEY_PASSWORD")
+            }
         }
     }
 
@@ -63,7 +70,9 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            // findByName renvoie null si la config n'existe pas (CI sans keystore) :
+            // le build release sera alors non signé, mais la configuration ne casse pas.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
