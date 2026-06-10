@@ -95,66 +95,66 @@ jobs:
   # Desktop Windows : produit le .msi installable. Tourne sur un runner Windows
   # (jpackage ne cross-compile pas). Job indépendant -> parallèle au job Linux.
   # ---------------------------------------------------------------------------
-  desktop-windows:
-    name: Build Desktop (Windows .msi)
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: corretto
-          java-version: 21
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      # Shell PowerShell ici : on écrit local.properties en ASCII (éviter le BOM
-      # UTF-16 de PowerShell, que le chargeur de Properties Java ne lit pas bien).
-      - name: Create local.properties
-        shell: pwsh
-        run: Set-Content -Path local.properties -Value 'weather.api.key=${{ secrets.WEATHER_API_KEY }}' -Encoding ascii
-
-      # Pas de chmod sous Windows : le wrapper gradlew.bat gère l'exécution.
-      # packageMsi -> installeur Windows (jpackage s'appuie sur WiX, préinstallé sur le runner).
-      - name: Build Desktop .msi
-        run: ./gradlew :desktopApp:packageMsi
-
-      - name: Upload Desktop .msi (Windows)
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktopApp-windows-msi
-          path: desktopApp/build/compose/binaries/main/msi/*.msi
-          if-no-files-found: ignore
+#  desktop-windows:
+#    name: Build Desktop (Windows .msi)
+#    runs-on: windows-latest
+#
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#
+#      - name: Set up JDK 21
+#        uses: actions/setup-java@v4
+#        with:
+#          distribution: corretto
+#          java-version: 21
+#
+#      - name: Set up Gradle
+#        uses: gradle/actions/setup-gradle@v4
+#
+#      # Shell PowerShell ici : on écrit local.properties en ASCII (éviter le BOM
+#      # UTF-16 de PowerShell, que le chargeur de Properties Java ne lit pas bien).
+#      - name: Create local.properties
+#        shell: pwsh
+#        run: Set-Content -Path local.properties -Value 'weather.api.key=${{ secrets.WEATHER_API_KEY }}' -Encoding ascii
+#
+#      # Pas de chmod sous Windows : le wrapper gradlew.bat gère l'exécution.
+#      # packageMsi -> installeur Windows (jpackage s'appuie sur WiX, préinstallé sur le runner).
+#      - name: Build Desktop .msi
+#        run: ./gradlew :desktopApp:packageMsi
+#
+#      - name: Upload Desktop .msi (Windows)
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: desktopApp-windows-msi
+#          path: desktopApp/build/compose/binaries/main/msi/*.msi
+#          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # iOS : nécessite OBLIGATOIREMENT un runner macOS (~10x plus coûteux en quota).
   # ---------------------------------------------------------------------------
-  # ios:
-  #   name: Build & Test (iOS)
-  #   runs-on: macos-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Set up JDK 21
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         distribution: corretto
-  #         java-version: 21
-  #
-  #     - name: Set up Gradle
-  #       uses: gradle/actions/setup-gradle@v4
-  #
-  #     - name: Create local.properties
-  #       run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
-  #
-  #     - name: Make gradlew executable
-  #       run: chmod +x ./gradlew
-  #
-  #     # Tests de la logique partagée compilée pour le simulateur iOS (arm64)
-  #     - name: Run iOS simulator tests
-  #       run: ./gradlew :shared:iosSimulatorArm64Test
+  ios:
+     name: Build & Test (iOS)
+     runs-on: macos-latest
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+
+       - name: Set up JDK 21
+         uses: actions/setup-java@v4
+         with:
+           distribution: corretto
+           java-version: 21
+
+       - name: Set up Gradle
+         uses: gradle/actions/setup-gradle@v4
+
+       - name: Create local.properties
+         run: echo "weather.api.key=${{ secrets.WEATHER_API_KEY }}" > local.properties
+
+       - name: Make gradlew executable
+         run: chmod +x ./gradlew
+
+       # Tests de la logique partagée compilée pour le simulateur iOS (arm64)
+       - name: Run iOS simulator tests
+         run: ./gradlew :shared:iosSimulatorArm64Test
