@@ -164,22 +164,10 @@ jobs:
        - name: Make gradlew executable
          run: chmod +x ./gradlew
 
-       # Tests de la logique partagée compilée pour le simulateur iOS (arm64)
-       - name: Run iOS simulator tests
-         run: ./gradlew :shared:iosSimulatorArm64Test
-
-       # Rapport HTML des tests iOS (if: always() -> aussi en cas d'échec,
-       # c'est justement là qu'on en a besoin pour lire l'assertion exacte)
-       - name: Upload iOS test reports
-         if: ${{ always() }}
-         uses: actions/upload-artifact@v4
-         with:
-           name: test-reports-ios
-           path: shared/build/reports/tests/
-           if-no-files-found: ignore
-
        # Build de l'app iOS pour le SIMULATEUR (aucune signature nécessaire).
-       # -target
+       # Placé AVANT les tests pour que l'app soit disponible en artefact
+       # même si un test échoue ensuite.
+       # -target (pas de scheme partagé commité dans le repo)
        # Une vraie .ipa installable sur iPhone exige un compte Apple Developer
        # (certificat + profil injectés en secrets)
        - name: Build iOS app (simulator)
@@ -203,4 +191,22 @@ jobs:
          with:
            name: iosApp-simulator
            path: ToDelete-simulator.zip
+           if-no-files-found: ignore
+
+       # Tests de la logique partagée compilée pour le simulateur iOS (arm64).
+       # NOTE : MainViewModelTest.loadWeathers (vraie requête HTTP) échoue sur le
+       # simulateur en CI : la validation TLS Apple rejette la chaîne de certificats
+       # d'openweathermap (NSURLErrorDomain -1202). Le même test passe sur JVM car
+       # la JVM utilise son propre magasin de certificats.
+       - name: Run iOS simulator tests
+         run: ./gradlew :shared:iosSimulatorArm64Test
+
+       # Rapport HTML des tests iOS (if: always() -> aussi en cas d'échec,
+       # c'est justement là qu'on en a besoin pour lire l'assertion exacte)
+       - name: Upload iOS test reports
+         if: ${{ always() }}
+         uses: actions/upload-artifact@v4
+         with:
+           name: test-reports-ios
+           path: shared/build/reports/tests/
            if-no-files-found: ignore

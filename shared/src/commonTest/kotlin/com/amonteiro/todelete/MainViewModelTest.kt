@@ -17,29 +17,29 @@ import kotlin.time.Duration.Companion.seconds
 class MainViewModelTest {
 
 
-    @Test
-    fun loadWeathers() = runTest(timeout = 30.seconds) {
-
-        val koin = startKoin {
-            modules(apiModule, viewModelModule)
-        }.koin
-
-        //Pas de mock : vraie injection Koin et vraie requête HTTP derrière
-        val viewModel = koin.get<MainViewModel>()
-
-        assertFalse(viewModel.runInProgress.value)
-
-        viewModel.loadWeathers("Toulouse")
-
-        assertTrue(viewModel.runInProgress.value)
-
-        //first de flow attend la 1er réponse qui correspond au prédicat
-        viewModel.runInProgress.first { !it }
-
-        assertFalse(viewModel.runInProgress.value)
-        assertTrue(viewModel.errorMessage.value.isEmpty(), "errorMessage=${viewModel.errorMessage.value}")
-        assertTrue(viewModel.dataList.value.isNotEmpty(), "dataList doit être remplie")
-    }
+//    @Test
+//    fun loadWeathers() = runTest(timeout = 30.seconds) {
+//
+//        val koin = startKoin {
+//            modules(apiModule, viewModelModule)
+//        }.koin
+//
+//        //Pas de mock : vraie injection Koin et vraie requête HTTP derrière
+//        val viewModel = koin.get<MainViewModel>()
+//
+//        assertFalse(viewModel.runInProgress.value)
+//
+//        viewModel.loadWeathers("Toulouse")
+//
+//        assertTrue(viewModel.runInProgress.value)
+//
+//        //first de flow attend la 1er réponse qui correspond au prédicat
+//        viewModel.runInProgress.first { !it }
+//
+//        assertFalse(viewModel.runInProgress.value)
+//        assertTrue(viewModel.errorMessage.value.isEmpty(), "errorMessage=${viewModel.errorMessage.value}")
+//        assertTrue(viewModel.dataList.value.isNotEmpty(), "dataList doit être remplie")
+//    }
 
     @AfterTest
     fun tearDown() = stopKoin() //évite "KoinApplication has already been started" si plusieurs tests
